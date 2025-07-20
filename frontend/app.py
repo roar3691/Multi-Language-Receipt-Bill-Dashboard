@@ -1,16 +1,14 @@
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import streamlit as st
 import pandas as pd
-
 from backend.db import receipts_collection, reset_receipts
 from backend.ocr_parser import extract_text_from_image, extract_text_from_pdf
 from backend.logic import parse_receipt_fields, ReceiptRecord, file_hash
 from pydantic import ValidationError
 
 st.title("🧾 Multi-Language Receipt/Bill Dashboard")
-st.markdown("""
-All receipts are reset to zero at app launch.  
-Receipts are auto-saved if unique by invoice/order/bill/receipt number (if detected) **or** file hash.
-""")
 
 ocr_lang = st.selectbox(
     "Select OCR Language (ensure Tesseract language pack is installed):",

@@ -1,6 +1,6 @@
 import re
-import hashlib
 from datetime import datetime
+import hashlib
 from pydantic import BaseModel, Field
 from typing import Optional
 from .keywords import KEYWORDS
@@ -24,6 +24,17 @@ def file_hash(file):
     file.seek(pos)
     return hash_val
 
+def safe_group_strip(m, n):
+    if m is None:
+        return ""
+    try:
+        val = m.group(n)
+    except (IndexError, AttributeError):
+        return ""
+    if val is None:
+        return ""
+    return val.strip()
+
 def parse_receipt_fields(text):
     currency = "INR"
     if re.search(r"(₹|INR)", text): currency = "INR"
@@ -35,13 +46,11 @@ def parse_receipt_fields(text):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     full_text = ' '.join(lines)
 
-    # Invoice/Order/Bill/Receipt Number (multi-language)
     invoice_number = ""
     invno_regex = keyword_regex(KEYWORDS["invoice_number"])
     m = re.search(invno_regex, full_text)
-    if m: invoice_number = m.group(2).strip()
+    invoice_number = safe_group_strip(m, 2)
 
-    # Vendor
     vendor = None
     for regex in [
         r"(?i)invoice issued by[ :]*([A-Za-z0-9 .,&()\\-]+)",
@@ -62,12 +71,11 @@ def parse_receipt_fields(text):
     if not vendor:
         vendor = lines[0][:35] if lines else ""
 
-    # Date
     date = None
     date_line_val = ""
     date_regex = keyword_regex(KEYWORDS["date"], after=r"[:\s#]*([A-Za-z0-9, \-/]+)")
     m = re.search(date_regex, full_text)
-    if m: date_line_val = m.group(2).strip()
+    date_line_val = safe_group_strip(m, 2)
     if date_line_val:
         for fmt in ("%d %b %Y", "%d %B %Y", "%d %b %y", "%d %B %y", "%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d", "%a %d %b %Y"):
             try:
@@ -91,7 +99,6 @@ def parse_receipt_fields(text):
             if date: break
     if not date: date = ""
 
-    # Amount/Total (multi-language aware)
     amount = None
     total_regex = re.compile(r"(?i)\b(" + "|".join(KEYWORDS["total"]) + r")\b")
     total_lines = []
